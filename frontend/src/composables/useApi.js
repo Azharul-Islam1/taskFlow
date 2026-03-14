@@ -1,34 +1,25 @@
-import axios from 'axios'
-import { useAuthStore } from '@/stores/auth'
-import router from '@/router'
+ import axios from 'axios'
 
-// Base axios instance — all API calls go through here
-const api = axios.create({
-  baseURL: '/api',
-  timeout: 10000,
-  headers: { 'Content-Type': 'application/json' }
-})
+export function useApi() {
+  const instance = axios.create({ baseURL: '/api' })
 
-// Request interceptor: attach JWT token to every request automatically
-api.interceptors.request.use((config) => {
-  const auth = useAuthStore()
-  if (auth.token) {
-    config.headers.Authorization = `Bearer ${auth.token}`
-  }
-  return config
-})
+  instance.interceptors.request.use(config => {
+    const token = localStorage.getItem('tf_token')
+    if (token) config.headers.Authorization = `Bearer ${token}`
+    return config
+  })
 
-// Response interceptor: handle 401 (token expired) globally
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      const auth = useAuthStore()
-      auth.logout()
-      router.push('/login')
+  instance.interceptors.response.use(
+    res => res,
+    err => {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('tf_token')
+        localStorage.removeItem('tf_user')
+        window.location.href = '/login'
+      }
+      return Promise.reject(err)
     }
-    return Promise.reject(error)
-  }
-)
+  )
 
-export default api
+  return instance
+}

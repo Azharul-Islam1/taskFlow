@@ -1,218 +1,297 @@
  <template>
-  <teleport to="body">
-    <transition name="modal">
-      <div v-if="isOpen" class="modal-overlay" @click.self="close">
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="isOpen" class="overlay" @click.self="$emit('close')">
         <div class="modal">
-          <div class="modal-header">
-            <h2>{{ isEdit ? 'Edit Task' : 'New Task' }}</h2>
-            <button class="close-btn" @click="close">✕</button>
+          <div class="modal-hd">
+            <div class="modal-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              New Task
+            </div>
+            <button class="close-btn" @click="$emit('close')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
           </div>
 
           <div class="modal-body">
             <div class="field">
-              <label>Title *</label>
-              <input v-model="form.title" type="text" placeholder="Task title..." ref="titleInput" />
+              <label class="flb">Task Title <span class="req">*</span></label>
+              <input
+                class="fin" v-model="form.title"
+                placeholder="e.g. Design new landing page"
+                ref="titleRef"
+                @keyup.enter="handleSubmit"
+              />
             </div>
 
             <div class="field">
-              <label>Description</label>
-              <textarea v-model="form.description" placeholder="Add details..." rows="3"></textarea>
+              <label class="flb">Description</label>
+              <textarea
+                class="fin fta" v-model="form.description"
+                placeholder="Add details..." rows="3"
+              />
             </div>
 
-            <div class="field-row">
+            <div class="two-col">
               <div class="field">
-                <label>Priority</label>
-                <select v-model="form.priority">
-                  <option value="low">🟢 Low</option>
-                  <option value="medium">🟡 Medium</option>
-                  <option value="high">🔴 High</option>
-                </select>
+                <label class="flb">Status</label>
+                <div class="sel-wrap">
+                  <select class="fin fsel" v-model="form.status">
+                    <option value="todo">To Do</option>
+                    <option value="inprogress">In Progress</option>
+                    <option value="done">Done</option>
+                  </select>
+                  <svg class="sel-ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
               </div>
               <div class="field">
-                <label>Status</label>
-                <select v-model="form.status">
-                  <option value="todo">To Do</option>
-                  <option value="inprogress">In Progress</option>
-                  <option value="done">Done</option>
-                </select>
+                <label class="flb">Priority</label>
+                <div class="pri-btns">
+                  <button
+                    v-for="p in priorities" :key="p.value"
+                    class="pri-btn" :class="[`p-${p.value}`, { active: form.priority === p.value }]"
+                    @click="form.priority = p.value" type="button"
+                  >
+                    <div class="pdot"></div>{{ p.label }}
+                  </button>
+                </div>
               </div>
             </div>
 
             <div class="field">
-              <label>Due Date</label>
-              <input v-model="form.dueDate" type="date" />
+              <label class="flb">Due Date</label>
+              <input class="fin" type="date" v-model="form.dueDate" :min="today"/>
             </div>
 
             <div class="field">
-              <label>Tags (comma separated)</label>
-              <input v-model="tagsInput" type="text" placeholder="design, frontend, urgent" />
+              <label class="flb">Tags <span class="hint">press Enter to add</span></label>
+              <div class="fin tag-row">
+                <TransitionGroup name="tag" tag="div" class="tag-chips">
+                  <span v-for="tag in form.tags" :key="tag" class="tag-chip">
+                    {{ tag }}
+                    <button class="tag-rm" @click="removeTag(tag)">✕</button>
+                  </span>
+                </TransitionGroup>
+                <input
+                  class="tag-inp" v-model="tagInput"
+                  placeholder="design, frontend..."
+                  @keydown.enter.prevent="addTag"
+                  @keydown.comma.prevent="addTag"
+                />
+              </div>
             </div>
           </div>
 
-          <div class="modal-footer">
-            <button class="btn-cancel" @click="close">Cancel</button>
-            <button class="btn-submit" @click="submit" :disabled="!form.title.trim()">
-              {{ isEdit ? 'Save Changes' : 'Create Task' }}
+          <div class="modal-ft">
+            <button class="btn-cancel" @click="$emit('close')">Cancel</button>
+            <button class="btn-submit" @click="handleSubmit" :disabled="!form.title.trim()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Create Task
             </button>
           </div>
         </div>
       </div>
-    </transition>
-  </teleport>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
-import { ref, reactive, watch, nextTick } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 
 const props = defineProps({
-  isOpen: Boolean,
-  task: { type: Object, default: null },
+  isOpen:        Boolean,
   defaultStatus: { type: String, default: 'todo' }
 })
-
 const emit = defineEmits(['close', 'submit'])
 
-const isEdit = ref(false)
-const titleInput = ref(null)
-const tagsInput = ref('')
+const priorities = [
+  { value: 'low',    label: 'Low'    },
+  { value: 'medium', label: 'Med'    },
+  { value: 'high',   label: 'High'   },
+]
 
-const form = reactive({
-  title: '',
-  description: '',
-  priority: 'medium',
-  status: 'todo',
-  dueDate: ''
+const today    = new Date().toISOString().split('T')[0]
+const titleRef = ref(null)
+const tagInput = ref('')
+
+const defaultForm = () => ({
+  title: '', description: '',
+  status: props.defaultStatus,
+  priority: 'medium', dueDate: '', tags: []
 })
 
-watch(() => props.isOpen, async (open) => {
-  if (open) {
-    if (props.task) {
-      isEdit.value = true
-      Object.assign(form, {
-        title: props.task.title,
-        description: props.task.description || '',
-        priority: props.task.priority || 'medium',
-        status: props.task.status,
-        dueDate: props.task.dueDate ? props.task.dueDate.slice(0, 10) : ''
-      })
-      tagsInput.value = props.task.tags?.join(', ') || ''
-    } else {
-      isEdit.value = false
-      Object.assign(form, { title: '', description: '', priority: 'medium', status: props.defaultStatus, dueDate: '' })
-      tagsInput.value = ''
-    }
+const form = ref(defaultForm())
+
+watch(() => props.isOpen, async (val) => {
+  if (val) {
+    form.value = defaultForm()
+    form.value.status = props.defaultStatus
+    tagInput.value = ''
     await nextTick()
-    titleInput.value?.focus()
+    titleRef.value?.focus()
   }
 })
 
-function close() { emit('close') }
-
-function submit() {
-  if (!form.title.trim()) return
-  const payload = {
-    ...form,
-    tags: tagsInput.value
-      .split(',')
-      .map(t => t.trim())
-      .filter(Boolean)
-  }
-  emit('submit', payload)
-  close()
+function addTag() {
+  const t = tagInput.value.replace(/,/g,'').trim().toLowerCase()
+  if (t && !form.value.tags.includes(t) && form.value.tags.length < 5)
+    form.value.tags.push(t)
+  tagInput.value = ''
+}
+function removeTag(tag) {
+  form.value.tags = form.value.tags.filter(t => t !== tag)
+}
+function handleSubmit() {
+  if (!form.value.title.trim()) return
+  if (tagInput.value.trim()) addTag()
+  emit('submit', { ...form.value })
+  emit('close')
 }
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
+.overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
 }
 .modal {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  width: 100%;
-  max-width: 480px;
-  box-shadow: var(--shadow-card), 0 0 60px rgba(108,99,255,0.2);
+  background: white; border-radius: 8px;
+  width: 100%; max-width: 460px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
   overflow: hidden;
 }
-.modal-enter-active, .modal-leave-active { transition: all 0.25s ease; }
-.modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.95) translateY(10px); }
-.modal-header {
-  display: flex;
-  align-items: center;
+.modal-enter-active { transition: all .2s cubic-bezier(.34,1.3,.64,1); }
+.modal-leave-active { transition: all .15s ease; }
+.modal-enter-from   { opacity: 0; transform: scale(.95) translateY(8px); }
+.modal-leave-to     { opacity: 0; transform: scale(.97); }
+
+.modal-hd {
+  display: flex; align-items: center;
   justify-content: space-between;
-  padding: 24px 24px 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid #e1e1e1;
 }
-.modal-header h2 {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
+.modal-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 600; color: #1a1a1a;
 }
 .close-btn {
-  background: none; border: none; color: var(--text-secondary);
-  cursor: pointer; font-size: 16px; padding: 4px;
-  border-radius: var(--radius-sm);
-  transition: color var(--transition-fast), background var(--transition-fast);
+  width: 26px; height: 26px; background: none;
+  border: 1px solid #e1e1e1; border-radius: 4px;
+  color: #8a8a8a; cursor: pointer;
+  display: grid; place-items: center; transition: all .15s;
 }
-.close-btn:hover { color: var(--text-primary); background: var(--bg-secondary); }
-.modal-body {
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.close-btn:hover { background: #f0f0f0; color: #1a1a1a; }
+
+.modal-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 13px; }
+
+.field { display: flex; flex-direction: column; gap: 5px; }
+.flb {
+  font-size: 11px; font-weight: 600; color: #8a8a8a;
+  text-transform: uppercase; letter-spacing: .05em;
 }
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.field label {
-  font-size: 12px; font-weight: 500; color: var(--text-secondary);
-  text-transform: uppercase; letter-spacing: 0.08em;
+.req  { color: #d13438; }
+.hint { font-size: 11px; color: #c0c0c0; font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: 4px; }
+
+.fin {
+  width: 100%; background: white !important;
+  border: 1px solid #d0d0d0 !important;
+  border-radius: 4px !important; padding: 8px 11px !important;
+  font-size: 13.5px !important; color: #1a1a1a !important;
+  outline: none !important; box-shadow: none !important;
+  transition: border-color .15s !important;
 }
-.field input, .field textarea, .field select {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  font-size: 14px;
-  outline: none;
-  resize: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+.fin:hover { border-color: #a0a0a0 !important; }
+.fin:focus { border-color: #5b5ea6 !important; box-shadow: 0 0 0 3px rgba(91,94,166,0.12) !important; }
+.fin::placeholder { color: #c0c0c0 !important; }
+.fta { resize: vertical; min-height: 68px; line-height: 1.55; }
+
+input[type="date"].fin { color-scheme: light; }
+
+.sel-wrap { position: relative; }
+.fsel { appearance: none; cursor: pointer; padding-right: 28px !important; }
+.sel-ic { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: #a0a0a0; pointer-events: none; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.pri-btns { display: flex; gap: 5px; }
+.pri-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 7px 4px; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  background: white; border: 1px solid #d0d0d0;
+  color: #8a8a8a; transition: all .15s;
 }
-.field input:focus, .field textarea:focus, .field select:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(108,99,255,0.15);
+.pdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.p-low    .pdot { background: #107c10; }
+.p-medium .pdot { background: #c7700a; }
+.p-high   .pdot { background: #d13438; }
+
+.p-low:hover,    .p-low.active    { background: #dff6dd; border-color: #9fd49f; color: #107c10; }
+.p-medium:hover, .p-medium.active { background: #fff4ce; border-color: #f0d070; color: #c7700a; }
+.p-high:hover,   .p-high.active   { background: #fde7e9; border-color: #f1b2b7; color: #d13438; }
+
+.tag-row {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 5px; padding: 6px 8px !important; min-height: 38px; cursor: text;
 }
-.field select option { background: var(--bg-card); }
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 24px 24px;
+.tag-chips { display: contents; }
+.tag-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: #7a4f00; font-weight: 500;
+  background: #fde7c3; border-radius: 3px; padding: 2px 7px;
+}
+.tag-rm {
+  background: none; border: none; cursor: pointer;
+  color: #7a4f00; font-size: 9px; padding: 0; transition: color .12s;
+}
+.tag-rm:hover { color: #d13438; }
+.tag-inp {
+  flex: 1; min-width: 80px; background: none !important;
+  border: none !important; outline: none !important;
+  box-shadow: none !important; padding: 0 !important;
+  font-size: 13px !important; color: #1a1a1a !important;
+}
+.tag-inp::placeholder { color: #c0c0c0 !important; }
+
+.tag-enter-active { transition: all .15s ease; }
+.tag-enter-from   { opacity: 0; transform: scale(.85); }
+.tag-leave-active { transition: all .12s ease; }
+.tag-leave-to     { opacity: 0; transform: scale(.85); }
+
+.modal-ft {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 12px 18px; border-top: 1px solid #e1e1e1;
+  background: #fafafa;
 }
 .btn-cancel {
-  background: none; border: 1px solid var(--border-subtle);
-  color: var(--text-secondary); border-radius: var(--radius-sm);
-  padding: 10px 20px; cursor: pointer; font-family: var(--font-body); font-size: 14px;
-  transition: all var(--transition-fast);
+  padding: 7px 16px; background: white;
+  border: 1px solid #d0d0d0; border-radius: 4px;
+  color: #4a4a4a; font-family: inherit; font-size: 13px;
+  font-weight: 500; cursor: pointer; transition: all .15s;
 }
-.btn-cancel:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.btn-cancel:hover { background: #f5f5f5; }
+
 .btn-submit {
-  background: linear-gradient(135deg, var(--accent-primary), #8b85ff);
-  border: none; border-radius: var(--radius-sm);
-  padding: 10px 24px; color: white;
-  font-family: var(--font-display); font-size: 14px; font-weight: 600;
-  cursor: pointer; transition: opacity var(--transition-fast), transform var(--transition-fast);
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 16px; background: #5b5ea6;
+  border: none; border-radius: 4px; color: white;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all .15s;
 }
-.btn-submit:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
-.btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-submit:hover:not(:disabled) { background: #4a4d8f; }
+.btn-submit:disabled { opacity: .4; cursor: not-allowed; }
+
+@media (max-width: 480px) {
+  .two-col { grid-template-columns: 1fr; }
+}
 </style>

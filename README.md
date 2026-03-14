@@ -1,4 +1,4 @@
-# TaskFlow — Draggable Kanban Board
+# TaskFlow — Kanban Board
 
 > **Engineering Assignment — Option 3: Draggable Kanban Board**
 > Full Stack Developer Intern | MEVN Stack (MongoDB, Express.js, Vue 3, Node.js)
@@ -7,28 +7,31 @@
 
 ## 📌 Project Overview
 
-TaskFlow is an interactive task management board built with the MEVN stack. It allows users to create, manage, and drag tasks across three columns — **To Do**, **In Progress**, and **Done** — with real-time column count updates and full backend persistence.
+TaskFlow is an interactive task management board inspired by **Microsoft Teams Planner**, built with the MEVN stack. Users can create, manage, and drag tasks across three columns — **To Do**, **In Progress**, and **Done** — with real-time updates and full backend persistence.
 
-### Extra Features Implemented
+### Features Implemented
+
 - 🔐 JWT-based Authentication (Register / Login)
-- ⚡ Optimistic UI Updates (instant drag feedback, rollback on failure)
+- 🖱️ Native HTML5 Drag & Drop with optimistic UI updates
 - 📋 Activity Log (tracks every create, move, update, delete)
 - 🏷️ Priority Tags (High / Medium / Low) with color indicators
-- 📅 Due Dates with overdue detection (red highlight + pulse animation)
-- 🔍 Search & Priority Filter
-- 🎨 Premium dark UI — Linear.app inspired design
+- 📅 Due Dates — green (on time) / red (overdue)
+- ✅ Checklist per task with progress bar
+- 🔍 Real-time Search & Priority Filter
+- 📝 Task Detail Panel — Teams Planner inspired slide-in panel
+- 🎨 Clean light UI — Microsoft Teams Planner inspired
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer      | Technology                        |
-|------------|-----------------------------------|
-| Frontend   | Vue 3 (Composition API), Pinia, Vue Router, Vite |
-| Backend    | Node.js, Express.js               |
-| Database   | MongoDB Atlas                     |
-| Auth       | JWT (jsonwebtoken), bcryptjs      |
-| Styling    | Custom CSS (no framework)         |
+| Layer      | Technology                                           |
+|------------|------------------------------------------------------|
+| Frontend   | Vue 3 (Composition API), Pinia, Vue Router, Vite     |
+| Backend    | Node.js, Express.js                                  |
+| Database   | MongoDB Atlas                                        |
+| Auth       | JWT (jsonwebtoken), bcryptjs                         |
+| Styling    | Custom CSS (no framework)                            |
 
 ---
 
@@ -36,15 +39,19 @@ TaskFlow is an interactive task management board built with the MEVN stack. It a
 
 ```
 taskFlow/
-├── frontend/               ← Vue 3 + Vite
+├── frontend/
 │   ├── src/
 │   │   ├── main.js
 │   │   ├── App.vue
+│   │   ├── assets/
+│   │   │   └── main.css
+│   │   ├── composables/
+│   │   │   └── useApi.js
 │   │   ├── router/
 │   │   │   └── index.js
 │   │   ├── stores/
-│   │   │   ├── auth.js      ← Pinia auth store
-│   │   │   └── tasks.js     ← Pinia tasks store
+│   │   │   ├── auth.js
+│   │   │   └── tasks.js
 │   │   ├── views/
 │   │   │   ├── LoginView.vue
 │   │   │   ├── RegisterView.vue
@@ -53,10 +60,11 @@ taskFlow/
 │   │       ├── KanbanColumn.vue
 │   │       ├── TaskCard.vue
 │   │       ├── TaskModal.vue
+│   │       ├── TaskDetailPanel.vue
 │   │       └── ActivityLog.vue
 │   └── package.json
 │
-└── backend/                ← Node.js + Express
+└── backend/
     ├── server.js
     ├── .env
     ├── models/
@@ -110,7 +118,7 @@ Start the backend server:
 node server.js
 ```
 
-✅ You should see:
+You should see:
 ```
 ✅ MongoDB connected!
 🚀 Server running on port 5000
@@ -128,7 +136,7 @@ npm install
 npm run dev
 ```
 
-✅ App will be running at:
+App will be running at:
 ```
 http://localhost:5173
 ```
@@ -139,31 +147,32 @@ http://localhost:5173
 
 ### Auth Routes — `/api/auth`
 
-| Method | Endpoint    | Description         | Auth Required |
-|--------|-------------|---------------------|---------------|
-| POST   | `/register` | Register new user   | ❌            |
-| POST   | `/login`    | Login, returns JWT  | ❌            |
+| Method | Endpoint    | Description        | Auth Required |
+|--------|-------------|--------------------|---------------|
+| POST   | `/register` | Register new user  | ❌            |
+| POST   | `/login`    | Login, returns JWT | ❌            |
 
 ### Task Routes — `/api/tasks`
 
-| Method | Endpoint     | Description              | Auth Required |
-|--------|--------------|--------------------------|---------------|
-| GET    | `/`          | Get all tasks for user   | ✅            |
-| POST   | `/`          | Create a new task        | ✅            |
-| PUT    | `/:id`       | Update full task         | ✅            |
-| PATCH  | `/:id`       | Update task status only  | ✅            |
-| DELETE | `/:id`       | Delete a task            | ✅            |
+| Method | Endpoint                      | Description              | Auth Required |
+|--------|-------------------------------|--------------------------|---------------|
+| GET    | `/`                           | Get all tasks for user   | ✅            |
+| POST   | `/`                           | Create a new task        | ✅            |
+| PUT    | `/:id`                        | Update full task         | ✅            |
+| PATCH  | `/:id/status`                 | Update task status only  | ✅            |
+| PATCH  | `/:id/checklist/:checklistId` | Toggle checklist item    | ✅            |
+| DELETE | `/:id`                        | Delete a task            | ✅            |
 
 ---
 
-## 🔄 Data Flow — Frontend ↔ Backend
+## 🔄 Data Flow
 
 ```
 User Action (drag card)
         ↓
 Pinia Store (tasks.js)
   → Optimistic UI update (instant column change)
-  → PATCH /api/tasks/:id  { status: "inprogress" }
+  → PATCH /api/tasks/:id/status  { status: "inprogress" }
         ↓
 Express Backend
   → JWT middleware verifies token
@@ -174,24 +183,6 @@ Response
   → Failure → rollback to original position
 ```
 
-### Key Architectural Decisions
-
-**1. Pinia for State Management**
-Chosen over plain `reactive()` because tasks are shared across `BoardView`, `KanbanColumn`, `TaskCard`, and `ActivityLog`. Pinia provides a clean, devtools-friendly store without prop drilling.
-
-**2. Optimistic UI**
-When a user drags a card, the UI updates instantly before the API call completes. If the API fails, the task snaps back to its original column. This gives a smooth, responsive feel.
-
-**3. JWT Authentication**
-All task API routes are protected via a custom Express middleware that verifies the Bearer token. The frontend Axios instance automatically attaches the token from localStorage and redirects to `/login` on 401 responses.
-
-**4. Component Architecture**
-- `BoardView` — orchestrates data fetching and event handling
-- `KanbanColumn` — handles drag-over/drop events per column
-- `TaskCard` — displays task data, emits drag/edit/delete events
-- `TaskModal` — reusable for both create and edit operations
-- `ActivityLog` — slide-in panel, reads from Pinia store
-
 ---
 
 ## 🗄️ Database Schema
@@ -199,9 +190,10 @@ All task API routes are protected via a custom Express middleware that verifies 
 ### User Model
 ```js
 {
-  name:      String,
-  email:     String (unique),
-  password:  String (bcrypt hashed)
+  name:       String,
+  email:      String (unique),
+  password:   String (bcrypt hashed),
+  timestamps: true
 }
 ```
 
@@ -214,7 +206,14 @@ All task API routes are protected via a custom Express middleware that verifies 
   priority:    "low" | "medium" | "high",
   dueDate:     Date,
   tags:        [String],
-  user:        ObjectId (ref: User)
+  checklist: [
+    {
+      text:    String,
+      checked: Boolean
+    }
+  ],
+  user:        ObjectId (ref: User),
+  timestamps:  true
 }
 ```
 
@@ -224,19 +223,42 @@ All task API routes are protected via a custom Express middleware that verifies 
 
 | Feature | Description |
 |---|---|
-| **Drag & Drop** | Native HTML5 drag events, smooth card transitions |
-| **Real-time Count** | Column headers update instantly on every move |
-| **Overdue Dates** | Red pulsing highlight when due date is past |
+| **Drag & Drop** | Native HTML5 drag events across columns |
+| **Optimistic UI** | Instant feedback with automatic rollback on failure |
+| **Task Detail Panel** | Teams-style slide-in panel with full task editing |
+| **Checklist** | Add/toggle/delete checklist items with live progress bar |
+| **Due Date Badge** | Green (on time) / Red (overdue) color coding |
 | **Search** | Filters tasks by title/description in real-time |
 | **Priority Filter** | Filter board by High / Medium / Low |
 | **Activity Log** | Slide-in panel showing last 20 actions |
-| **Optimistic UI** | Instant feedback with automatic rollback |
+| **Auth** | JWT protected routes, persistent login via localStorage |
+
+---
+
+## 🏗️ Key Architectural Decisions
+
+**1. Pinia for State Management**
+Tasks are shared across `BoardView`, `KanbanColumn`, `TaskCard`, `TaskDetailPanel`, and `ActivityLog`. Pinia provides a clean centralized store without prop drilling.
+
+**2. Optimistic UI for Drag & Drop**
+When a user drags a card, the UI updates instantly before the API call completes. If the API fails, the task snaps back to its original column automatically.
+
+**3. JWT Authentication**
+All task API routes are protected via a custom Express middleware that verifies the Bearer token. The frontend Axios instance automatically attaches the token from localStorage and redirects to `/login` on 401 responses.
+
+**4. Component Architecture**
+- `BoardView` — orchestrates data fetching and event handling
+- `KanbanColumn` — handles drag-over/drop events per column
+- `TaskCard` — displays task data, emits drag/edit/delete events
+- `TaskModal` — create new task
+- `TaskDetailPanel` — full task editing with checklist
+- `ActivityLog` — slide-in panel, reads from Pinia store
 
 ---
 
 ## 📹 Demo
 
-> 🎥 Screen recording link: *(Add Loom/Drive link here)*
+> 🎥 [Watch Demo](https://www.loom.com/share/a4abdbcefc7e44d8bdc0984513da5719)
 
 ---
 

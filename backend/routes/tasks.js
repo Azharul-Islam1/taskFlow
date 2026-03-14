@@ -1,5 +1,5 @@
- import express    from 'express'
-import Task       from '../models/Task.js'
+ import express from 'express'
+import Task from '../models/Task.js'
 import authMiddleware from '../middleware/auth.js'
 
 const router = express.Router()
@@ -41,39 +41,47 @@ router.put('/:id', async (req, res) => {
     if (tags        !== undefined) task.tags        = tags
 
     if (checklist !== undefined) {
+      const incomingIds = checklist
+        .filter(c => c._id)
+        .map(c => String(c._id))
+
+      task.checklist = task.checklist.filter(c =>
+        incomingIds.includes(String(c._id))
+      )
+
       checklist.forEach(incoming => {
         if (incoming._id) {
           const existing = task.checklist.id(incoming._id)
           if (existing) {
             existing.text    = incoming.text
             existing.checked = incoming.checked
-          } else {
-            task.checklist.push({ text: incoming.text, checked: incoming.checked })
           }
         } else {
           task.checklist.push({ text: incoming.text, checked: incoming.checked })
         }
       })
-      const incomingIds = checklist.filter(c => c._id).map(c => String(c._id))
-      task.checklist = task.checklist.filter(c => incomingIds.includes(String(c._id)) || !c._id)
     }
 
     if (subtasks !== undefined) {
+      const incomingIds = subtasks
+        .filter(s => s._id)
+        .map(s => String(s._id))
+
+      task.subtasks = task.subtasks.filter(s =>
+        incomingIds.includes(String(s._id))
+      )
+
       subtasks.forEach(incoming => {
         if (incoming._id) {
           const existing = task.subtasks.id(incoming._id)
           if (existing) {
             existing.title     = incoming.title
             existing.completed = incoming.completed
-          } else {
-            task.subtasks.push({ title: incoming.title, completed: incoming.completed })
           }
         } else {
           task.subtasks.push({ title: incoming.title, completed: incoming.completed })
         }
       })
-      const incomingIds = subtasks.filter(s => s._id).map(s => String(s._id))
-      task.subtasks = task.subtasks.filter(s => incomingIds.includes(String(s._id)) || !s._id)
     }
 
     await task.save()

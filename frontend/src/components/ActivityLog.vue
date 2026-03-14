@@ -1,124 +1,124 @@
-<template>
-  <div class="activity-panel" :class="{ open: isOpen }">
-    <div class="panel-header">
-      <h3>Activity</h3>
-      <button class="close-btn" @click="$emit('close')">✕</button>
-    </div>
+ <template>
+  <Teleport to="body">
+    <Transition name="panel">
+      <div v-if="isOpen" class="overlay" @click.self="$emit('close')">
+        <div class="panel">
+          <div class="panel-hd">
+            <div class="panel-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+              Activity Log
+            </div>
+            <button class="close-btn" @click="$emit('close')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
 
-    <div class="activity-list">
-      <transition-group name="activity-item" tag="div">
-        <div
-          v-for="log in activityLog"
-          :key="log.id"
-          class="activity-item"
-          :class="`type-${log.type}`"
-        >
-          <span class="activity-icon">{{ typeIcon(log.type) }}</span>
-          <div class="activity-content">
-            <p class="activity-msg">{{ log.message }}</p>
-            <span class="activity-time">{{ formatTime(log.time) }}</span>
+          <div class="panel-body">
+            <div v-if="activityLog.length === 0" class="empty">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span>No activity yet</span>
+            </div>
+
+            <TransitionGroup name="log" tag="div" class="log-list">
+              <div v-for="(item, i) in activityLog" :key="i" class="log-item">
+                <div class="log-dot" :class="`dot-${item.type}`"></div>
+                <div class="log-content">
+                  <div class="log-msg">{{ item.message }}</div>
+                  <div class="log-time">{{ item.time }}</div>
+                </div>
+              </div>
+            </TransitionGroup>
           </div>
         </div>
-      </transition-group>
-
-      <div v-if="activityLog.length === 0" class="empty">
-        No activity yet
       </div>
-    </div>
-  </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
 defineProps({
-  isOpen: Boolean,
+  isOpen:      Boolean,
   activityLog: { type: Array, default: () => [] }
 })
 defineEmits(['close'])
-
-function typeIcon(type) {
-  const map = { move: '↕', create: '✦', delete: '✕', info: '●' }
-  return map[type] || '●'
-}
-
-function formatTime(iso) {
-  const date = new Date(iso)
-  const now = new Date()
-  const diff = Math.floor((now - date) / 1000)
-  if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
 </script>
 
 <style scoped>
-.activity-panel {
-  position: fixed;
-  right: 0; top: 0; bottom: 0;
-  width: 280px;
-  background: var(--bg-secondary);
-  border-left: 1px solid var(--border-subtle);
-  z-index: 200;
-  transform: translateX(100%);
-  transition: transform var(--transition-smooth);
-  display: flex;
-  flex-direction: column;
+.overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.25);
+  display: flex; justify-content: flex-end;
 }
-.activity-panel.open { transform: translateX(0); }
-.panel-header {
-  display: flex;
-  align-items: center;
+.panel {
+  width: 300px; height: 100%;
+  background: white;
+  border-left: 1px solid #e1e1e1;
+  display: flex; flex-direction: column;
+  box-shadow: -4px 0 16px rgba(0,0,0,0.08);
+}
+.panel-enter-active, .panel-leave-active { transition: all .22s ease; }
+.panel-enter-from, .panel-leave-to       { opacity: 0; transform: translateX(20px); }
+
+.panel-hd {
+  display: flex; align-items: center;
   justify-content: space-between;
-  padding: 24px 20px 16px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-.panel-header h3 {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-secondary);
-}
-.close-btn {
-  background: none; border: none; color: var(--text-secondary);
-  cursor: pointer; font-size: 14px;
-  transition: color var(--transition-fast);
-}
-.close-btn:hover { color: var(--text-primary); }
-.activity-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.activity-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
-}
-.activity-item:hover { background: var(--bg-card); }
-.activity-icon {
-  font-size: 12px;
-  margin-top: 2px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e1e1e1;
   flex-shrink: 0;
 }
-.type-move .activity-icon { color: var(--accent-primary); }
-.type-create .activity-icon { color: var(--accent-green); }
-.type-delete .activity-icon { color: var(--accent-secondary); }
-.activity-content { display: flex; flex-direction: column; gap: 2px; }
-.activity-msg { font-size: 13px; color: var(--text-primary); line-height: 1.4; }
-.activity-time { font-size: 11px; color: var(--text-muted); }
-.empty {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 13px;
-  padding: 40px 20px;
+.panel-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 600; color: #1a1a1a;
 }
-.activity-item-enter-active { transition: all 0.3s ease; }
-.activity-item-enter-from { opacity: 0; transform: translateX(20px); }
+.close-btn {
+  width: 26px; height: 26px; background: none;
+  border: 1px solid #e1e1e1; border-radius: 4px;
+  color: #8a8a8a; cursor: pointer;
+  display: grid; place-items: center; transition: all .15s;
+}
+.close-btn:hover { background: #f0f0f0; color: #1a1a1a; }
+
+.panel-body { flex: 1; overflow-y: auto; padding: 12px; }
+.panel-body::-webkit-scrollbar       { width: 3px; }
+.panel-body::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 2px; }
+
+.empty {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 8px; padding: 48px 16px;
+  color: #c0c0c0;
+}
+.empty span { font-size: 13px; }
+
+.log-list { display: flex; flex-direction: column; gap: 2px; }
+.log-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 8px; border-radius: 5px; transition: background .12s;
+}
+.log-item:hover { background: #f9f9f9; }
+
+.log-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 5px;
+}
+.dot-create  { background: #107c10; }
+.dot-update  { background: #5b5ea6; }
+.dot-move    { background: #c7700a; }
+.dot-delete  { background: #d13438; }
+.dot-default { background: #c0c0c0; }
+
+.log-content { flex: 1; min-width: 0; }
+.log-msg  { font-size: 12.5px; color: #4a4a4a; line-height: 1.5; }
+.log-time { font-size: 11px; color: #a0a0a0; margin-top: 2px; }
+
+.log-enter-active { transition: all .18s ease; }
+.log-enter-from   { opacity: 0; transform: translateX(6px); }
 </style>

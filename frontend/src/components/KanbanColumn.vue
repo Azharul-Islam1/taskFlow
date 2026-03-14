@@ -1,38 +1,49 @@
-<template>
-  <div
-    class="column"
-    :class="{ 'drag-over': isDragOver }"
-    @dragover.prevent="onDragOver"
-    @dragleave="onDragLeave"
-    @drop="onDrop"
-  >
-    <!-- Column Header -->
-    <div class="column-header">
-      <div class="col-title-row">
-        <span class="col-dot" :style="{ background: color }"></span>
-        <h2 class="col-title">{{ title }}</h2>
-        <span class="col-count">{{ tasks.length }}</span>
+  <template>
+  <div class="col">
+    <div class="col-hd">
+      <div class="col-pill" :class="pillClass">
+        <div class="col-dot" :style="{ background: color }"></div>
+        {{ title }}
+        <span class="col-count" :class="countClass">{{ tasks.length }}</span>
       </div>
-      <button class="add-btn" @click="$emit('add-task', status)" title="Add task">+</button>
+      <button class="col-add-btn" @click="$emit('add-task', status)">+</button>
     </div>
 
-    <!-- Task List -->
-    <div class="task-list">
-      <transition-group name="task-move" tag="div">
+    <div
+      class="col-body"
+      :class="{ 'drag-over': isDragOver }"
+      @dragover.prevent="isDragOver = true"
+      @dragenter.prevent="isDragOver = true"
+      @dragleave="onDragLeave"
+      @drop.prevent="onDrop"
+    >
+      <TransitionGroup name="card-list" tag="div" class="card-list">
         <TaskCard
           v-for="task in tasks"
           :key="task._id"
           :task="task"
-          @edit="$emit('edit-task', $event)"
-          @delete="$emit('delete-task', $event)"
+          @edit="$emit('edit-task', task)"
+          @delete="$emit('delete-task', task._id)"
         />
-      </transition-group>
+      </TransitionGroup>
 
-      <!-- Empty state -->
-      <div v-if="tasks.length === 0" class="empty-state">
-        <span>{{ emptyMessage }}</span>
+      <div v-if="tasks.length === 0" class="col-empty">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="empty-ico">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <line x1="3" y1="9" x2="21" y2="9"/>
+          <line x1="9" y1="21" x2="9" y2="9"/>
+        </svg>
+        <span>No tasks here</span>
+        <button class="empty-add" @click="$emit('add-task', status)">+ Add task</button>
       </div>
     </div>
+
+    <button class="col-add-bottom" @click="$emit('add-task', status)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Add task
+    </button>
   </div>
 </template>
 
@@ -41,29 +52,21 @@ import { ref } from 'vue'
 import TaskCard from './TaskCard.vue'
 
 const props = defineProps({
-  title: String,
-  status: String,
-  tasks: { type: Array, default: () => [] },
-  color: String
+  title:      String,
+  status:     String,
+  color:      String,
+  pillClass:  String,
+  countClass: String,
+  tasks:      { type: Array, default: () => [] }
 })
-
-const emit = defineEmits(['task-dropped', 'add-task', 'edit-task', 'delete-task'])
+const emit = defineEmits(['task-dropped','add-task','edit-task','delete-task'])
 
 const isDragOver = ref(false)
 
-const emptyMessages = {
-  todo: 'No tasks yet — add one!',
-  inprogress: 'Nothing in progress',
-  done: 'No completed tasks'
-}
-const emptyMessage = emptyMessages[props.status]
-
-function onDragOver() {
-  isDragOver.value = true
-}
-
-function onDragLeave() {
-  isDragOver.value = false
+function onDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    isDragOver.value = false
+  }
 }
 
 function onDrop(e) {
@@ -76,33 +79,30 @@ function onDrop(e) {
 </script>
 
 <style scoped>
-.column {
-  background: var(--bg-column);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 20px 16px;
+.col {
   min-width: 300px;
   flex: 1;
+  max-width: 340px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
-  min-height: 400px;
 }
-.column.drag-over {
-  border-color: var(--accent-primary);
-  box-shadow: inset 0 0 0 1px var(--accent-primary), var(--shadow-glow);
-  background: rgba(108, 99, 255, 0.04);
-}
-.column-header {
+
+.col-hd {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 0 2px;
 }
-.col-title-row {
+
+.col-pill {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  padding: 4px 12px 4px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
 }
 .col-dot {
   width: 8px;
@@ -110,64 +110,123 @@ function onDrop(e) {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.col-title {
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-secondary);
-}
 .col-count {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 20px;
-  min-width: 24px;
-  text-align: center;
-  transition: background var(--transition-smooth), color var(--transition-smooth);
+  padding: 1px 7px;
+  border-radius: 10px;
 }
-.column.drag-over .col-count {
-  background: rgba(108,99,255,0.15);
-  color: var(--accent-primary);
-  border-color: var(--border-accent);
-}
-.add-btn {
-  background: none;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  width: 28px; height: 28px;
-  border-radius: var(--radius-sm);
-  font-size: 18px;
+
+.pill-todo       { background: rgba(148,163,184,0.1); border: 0.5px solid rgba(148,163,184,0.25); color: #64748b; }
+.pill-inprogress { background: rgba(91,95,199,0.08);  border: 0.5px solid rgba(91,95,199,0.25);   color: #5B5FC7; }
+.pill-done       { background: rgba(34,197,94,0.08);  border: 0.5px solid rgba(34,197,94,0.25);   color: #15803d; }
+
+.count-todo       { background: rgba(148,163,184,0.15); color: #64748b; }
+.count-inprogress { background: rgba(91,95,199,0.12);   color: #5B5FC7; }
+.count-done       { background: rgba(34,197,94,0.12);   color: #15803d; }
+
+.col-add-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 0.5px solid #e2e8f0;
+  background: white;
+  color: #94a3b8;
+  display: grid;
+  place-items: center;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all var(--transition-fast);
-  line-height: 1;
+  transition: all .15s;
+  font-size: 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-.add-btn:hover {
-  background: var(--bg-card);
-  color: var(--text-primary);
-  border-color: var(--accent-primary);
+.col-add-btn:hover {
+  background: #f0f4ff;
+  border-color: #5B5FC7;
+  color: #5B5FC7;
 }
-.task-list { display: flex; flex-direction: column; gap: 10px; flex: 1; }
-.empty-state {
+
+.col-body {
   flex: 1;
+  border-radius: 12px;
+  border: 2px dashed transparent;
+  transition: all .15s;
+  padding: 2px;
+  min-height: 80px;
+}
+.col-body.drag-over {
+  background: rgba(91,95,199,0.05);
+  border-color: rgba(91,95,199,0.35);
+}
+
+.card-list {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-list-enter-active { transition: all .22s ease; }
+.card-list-leave-active { transition: all .18s ease; }
+.card-list-enter-from   { opacity: 0; transform: translateY(-8px); }
+.card-list-leave-to     { opacity: 0; transform: scale(.95); }
+.card-list-move         { transition: transform .22s ease; }
+
+.col-empty {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
-  font-size: 13px;
-  text-align: center;
-  padding: 40px 20px;
-  border: 1px dashed var(--border-subtle);
-  border-radius: var(--radius-md);
+  gap: 8px;
+  padding: 32px 16px;
+  color: #cbd5e1;
 }
-.task-move-move { transition: transform 0.3s ease; }
-.task-move-enter-active { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.task-move-leave-active { transition: all 0.2s ease; }
-.task-move-enter-from { opacity: 0; transform: translateY(-12px) scale(0.95); }
-.task-move-leave-to { opacity: 0; transform: translateY(12px) scale(0.95); }
+.empty-ico {
+  animation: bob 3s ease-in-out infinite;
+}
+@keyframes bob {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+.col-empty span {
+  font-size: 12px;
+  color: #cbd5e1;
+}
+.empty-add {
+  font-size: 12px;
+  color: #5B5FC7;
+  background: white;
+  border: 0.5px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 5px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+.empty-add:hover {
+  background: #f0f4ff;
+  border-color: #5B5FC7;
+}
+
+.col-add-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 12px;
+  margin-top: 6px;
+  background: rgba(255,255,255,0.7);
+  border: 1px dashed #e2e8f0;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: inherit;
+  font-weight: 500;
+  box-sizing: border-box;
+}
+.col-add-bottom:hover {
+  background: white;
+  border-color: #5B5FC7;
+  color: #5B5FC7;
+}
 </style>
